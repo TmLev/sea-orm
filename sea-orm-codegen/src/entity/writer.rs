@@ -1,5 +1,5 @@
 use crate::{util::escape_rust_keyword, ActiveEnum, Entity};
-use heck::ToUpperCamelCase;
+use heck::{ToPascalCase, ToUpperCamelCase};
 use proc_macro2::TokenStream;
 use quote::{format_ident, quote};
 use std::{collections::BTreeMap, str::FromStr};
@@ -787,6 +787,20 @@ impl EntityWriter {
         };
         let extra_derive = with_serde.extra_derive();
 
+        // TODO(TmLev): Make it an option for CLI.
+        let with_specta_rename = true;
+        let singularize = true;
+
+        let specta_rename_attribute = if with_specta_rename {
+            let mut table_name = table_name.to_pascal_case();
+            if singularize {
+                table_name = pluralizer::pluralize(table_name.as_str(), 1, false);
+            }
+            quote! { #[specta(rename = #table_name)] }
+        } else {
+            quote! {}
+        };
+
         quote! {
             #[derive(Clone, Debug, PartialEq, DeriveEntityModel #if_eq_needed #extra_derive #model_extra_derives)]
             #[sea_orm(
@@ -794,6 +808,7 @@ impl EntityWriter {
                 table_name = #table_name
             )]
             #model_extra_attributes
+            #specta_rename_attribute
             pub struct Model {
                 #(
                     #attrs
